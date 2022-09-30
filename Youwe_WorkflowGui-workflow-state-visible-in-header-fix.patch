@@ -1,0 +1,11 @@
+--- src/WorkflowGui/Controller/WorkflowController.php	2021-08-06 12:52:15.000000000 +0300
++++ src/WorkflowGui/Controller/WorkflowController.php	2022-04-22 09:44:03.000000000 +0300
+@@ -268,7 +268,7 @@ class WorkflowController extends AdminCo
+                     }
+                 }
+                 foreach ($placeConfig as $placeConfigKey => $value) {
+-                    if (!$value) {
++                    if (!$value && !in_array($placeConfigKey, ['visibleInHeader'])) {
+                         unset($placeConfig[$placeConfigKey]);
+                     }
+                 }

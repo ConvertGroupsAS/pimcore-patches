@@ -1,0 +1,20 @@
+--- bundles/AdminBundle/Resources/public/js/pimcore/object/helpers/gridTabAbstract.js	2021-06-23 11:26:54.000000000 +0300
++++ bundles/AdminBundle/Resources/public/js/pimcore/object/helpers/gridTabAbstract.js	2022-08-04 09:33:29.000000000 +0300
+@@ -206,10 +206,14 @@
+                         language: proxy.extraParams.language
+                     }
+                 );
++                
++                if (this.grid && this.grid.filters) {
++                    this.grid.filters.clearFilters();
++                }
+ 
+-                this.grid.filters.clearFilters();
+-
+-                this.pagingtoolbar.moveFirst();
++                if (this.pagingtoolbar) {
++                    this.pagingtoolbar.moveFirst();
++                }
+ 
+                 if (button.pressed) {
+                     this.sqlEditor.show();

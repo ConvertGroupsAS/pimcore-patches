@@ -1,0 +1,121 @@
+Index: models/DataObject/Concrete.php
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/models/DataObject/Concrete.php b/models/DataObject/Concrete.php
+--- a/models/DataObject/Concrete.php	(revision 9a33afacc268d9779bf6419639e8c208355e50c0)
++++ b/models/DataObject/Concrete.php	(date 1635935245826)
+@@ -724,10 +724,14 @@
+             return $list;
+         }
+
+-        // there is no property for the called method, so throw an exception
+-        Logger::error('Class: DataObject\\Concrete => call to undefined static method ' . $method);
++        try {
++            return call_user_func_array([parent::class, $method], $arguments);
++        } catch (\Exception $e) {
++            // there is no property for the called method, so throw an exception
++            Logger::error('Class: DataObject\\Concrete => call to undefined static method '.$method);
+
+-        throw new \Exception('Call to undefined static method ' . $method . ' in class DataObject\\Concrete');
++            throw new \Exception('Call to undefined static method ' . $method . ' in class DataObject\\Concrete');
++        }
+     }
+
+     /**
+Index: models/DataObject/AbstractObject.php
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/models/DataObject/AbstractObject.php b/models/DataObject/AbstractObject.php
+--- a/models/DataObject/AbstractObject.php	(revision 9a33afacc268d9779bf6419639e8c208355e50c0)
++++ b/models/DataObject/AbstractObject.php	(date 1635933461261)
+@@ -19,11 +19,14 @@
+ use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
+ use Pimcore\Cache;
+ use Pimcore\Cache\Runtime;
++use Pimcore\Config;
++use Pimcore\Db;
+ use Pimcore\Event\DataObjectEvents;
+ use Pimcore\Event\Model\DataObjectEvent;
+ use Pimcore\Logger;
+ use Pimcore\Model;
+ use Pimcore\Model\DataObject;
++use Pimcore\Model\DataObject\ClassDefinition\Data\Relations\AbstractRelations;
+ use Pimcore\Model\Element;
+
+ /**
+@@ -75,6 +78,13 @@
+      */
+     protected static $disableDirtyDetection = false;
+
++    /**
++     * @internal
++     *
++     * @var string[]
++     */
++    protected static $objectColumns = ['o_id', 'o_parentid', 'o_type', 'o_key', 'o_classid', 'o_classname'];
++
+     /**
+      * @var int
+      */
+@@ -1536,4 +1546,57 @@
+         $this->o_hasSiblings = [];
+         $this->o_siblings = [];
+     }
++
++    /**
++     * @param string $method
++     * @param array $arguments
++     * @return mixed|Listing|null
++     * @throws \Exception
++     */
++    public static function __callStatic($method, $arguments)
++    {
++        $propertyName = lcfirst(preg_replace('/^getBy/i', '', $method));
++
++        $realPropertyName = 'o_'.$propertyName;
++
++        $db = \Pimcore\Db::get();
++
++        if (in_array(strtolower($realPropertyName), self::$objectColumns)) {
++            $arguments = array_pad($arguments, 4, 0);
++            [$value, $limit, $offset, $objectTypes] = $arguments;
++
++            $defaultCondition = $realPropertyName.' = '.Db::get()->quote($value).' ';
++
++            $listConfig = [
++                'condition' => $defaultCondition,
++            ];
++
++            if (!is_array($limit)) {
++                if ($limit) {
++                    $listConfig['limit'] = $limit;
++                }
++                if ($offset) {
++                    $listConfig['offset'] = $offset;
++                }
++            } else {
++                $listConfig = array_merge($listConfig, $limit);
++                $limitCondition = $limit['condition'] ?? '';
++                $listConfig['condition'] = $defaultCondition.$limitCondition;
++            }
++
++            $list = static::getList($listConfig);
++
++            if (isset($listConfig['limit']) && $listConfig['limit'] == 1) {
++                $elements = $list->getObjects();
++
++                return isset($elements[0]) ? $elements[0] : null;
++            }
++            return $list;
++        }
++
++        // there is no property for the called method, so throw an exception
++        Logger::error('Class: DataObject\\AbstractObject => call to undefined static method ' . $method);
++
++        throw new \Exception('Call to undefined static method ' . $method . ' in class DataObject\\AbstractObject');
++    }
+ }

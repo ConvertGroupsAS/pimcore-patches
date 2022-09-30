@@ -1,0 +1,25 @@
+--- lib/Document/Renderer/DocumentRenderer.php  2022-03-15 11:52:48.000000000 +0300
++++ lib/Document/Renderer/DocumentRenderer.php   2022-03-15 11:52:42.000000000 +0300
+@@ -111,10 +111,12 @@
+      */
+     public function render(Document\PageSnippet $document, array $attributes = [], array $query = [], array $options = []): string
+     {
++        $event = new DocumentEvent($document, $attributes);
+         $this->eventDispatcher->dispatch(
+             DocumentEvents::RENDERER_PRE_RENDER,
+-            new DocumentEvent($document)
++            $event
+         );
++        $document = $event->getDocument();
+ 
+         // apply best matching target group (if any)
+         $this->targetingConfigurator->configureTargetGroup($document);
+@@ -148,7 +150,7 @@
+ 
+         $this->eventDispatcher->dispatch(
+             DocumentEvents::RENDERER_POST_RENDER,
+-            new DocumentEvent($document)
++            new DocumentEvent($document, $attributes)
+         );
+ 
+         return $response->getContent();

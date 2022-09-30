@@ -1,0 +1,12 @@
+--- models/DataObject/AbstractObject/Dao.php	2021-06-23 11:26:54.000000000 +0300
++++ models/DataObject/AbstractObject/Dao.php	2022-06-06 10:00:35.000000000 +0300
+@@ -540,7 +540,8 @@
+                 return $firstPermission;
+             }
+ 
+-            $permissions = $this->db->fetchRow('SELECT ' . $queryType . ' FROM users_workspaces_object WHERE cid IN (' . implode(',', $parentIds) . ') AND userId IN (' . implode(',', $userIds) . ') ORDER BY LENGTH(cpath) DESC, FIELD(userId, ' . $user->getId() . ') DESC, `' . $type . '` DESC  LIMIT 1');
++            $orderByType = $type ? ', `' . $type . '` DESC' : '';
++            $permissions = $this->db->fetchRow('SELECT ' . $queryType . ' FROM users_workspaces_object WHERE cid IN (' . implode(',', $parentIds) . ') AND userId IN (' . implode(',', $userIds) . ') ORDER BY LENGTH(cpath) DESC, FIELD(userId, ' . $user->getId() . ') DESC' . $orderByType . ' LIMIT 1');
+ 
+             return $permissions;
+         } catch (\Exception $e) {
