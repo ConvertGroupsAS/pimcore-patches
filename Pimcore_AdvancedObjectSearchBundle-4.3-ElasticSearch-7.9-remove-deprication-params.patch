@@ -1,0 +1,10 @@
+--- src/Service.php	2022-12-21 14:44:26.000000000 +0100
++++ src/Service.php	2023-02-13 10:33:02.000000000 +0100
+@@ -294,7 +294,6 @@
+ 
+         $mappingParams = [
+             'index' => $this->getIndexName($objectClass->getName()),
+-            'include_type_name' => false,
+             'body' => [
+                 '_source' => [
+                     'enabled' => true
