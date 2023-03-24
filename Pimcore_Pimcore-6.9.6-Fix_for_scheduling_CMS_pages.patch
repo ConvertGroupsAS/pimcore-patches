@@ -32,3 +32,25 @@ diff --git a/bundles/AdminBundle/Controller/Admin/Document/PageController.php b/
              $this->setValuesToDocument($request, $page);
  
              $page->saveVersion();
+Index: bundles/AdminBundle/Controller/Admin/Document/SnippetController.php
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/bundles/AdminBundle/Controller/Admin/Document/SnippetController.php b/bundles/AdminBundle/Controller/Admin/Document/SnippetController.php
+--- a/bundles/AdminBundle/Controller/Admin/Document/SnippetController.php	(revision 9a33afacc268d9779bf6419639e8c208355e50c0)
++++ b/bundles/AdminBundle/Controller/Admin/Document/SnippetController.php	(date 1679661995845)
+@@ -167,6 +167,13 @@
+                 ],
+                 'treeData' => $treeData,
+             ]);
++        } elseif ($request->get('task') == 'scheduler') {
++            if ($snippet->isAllowed('settings')) {
++                $this->setValuesToDocument($request, $snippet);
++                $snippet->saveScheduledTasks();
++
++                return $this->adminJson(['success' => true]);
++            }
+         } elseif ($snippet->isAllowed('save')) {
+             $this->setValuesToDocument($request, $snippet);
+
