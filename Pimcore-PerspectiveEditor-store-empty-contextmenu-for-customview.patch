@@ -1,0 +1,13 @@
+--- src/Services/PerspectiveAccessor.php	2023-08-29 10:26:19
++++ src/Services/PerspectiveAccessor.php	2023-08-29 10:26:55
+@@ -60,6 +60,10 @@
+                                         unset($grandchild['config']['treeContextMenu'][$contextMenuEntry]);
+                                     }
+                                 }
++
++                                if (empty($grandchild['config']['treeContextMenu'])) {
++                                    unset($grandchild['config']['treeContextMenu']);
++                                }                                
+                             }
+                             $grandchild['config']['sort'] = $sortIndex;
+                             $grandchild['config']['position'] = 'right';
