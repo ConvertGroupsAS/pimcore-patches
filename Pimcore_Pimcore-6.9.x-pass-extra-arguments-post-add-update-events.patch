@@ -1,0 +1,85 @@
+diff --color -rupN vendor/pimcore/pimcore-orig/models/Asset.php vendor/pimcore/pimcore/models/Asset.php
+--- models/Asset.php	2021-06-23 10:26:54
++++ models/Asset.php	2023-09-01 14:51:21
+@@ -582,19 +582,19 @@ class Asset extends Element\AbstractElement
+             $this->clearDependentCache($additionalTags);
+             $this->setDataChanged(false);
+ 
++            $postEvent = new AssetEvent($this, $params);
+             if ($isUpdate) {
+-                $updateEvent = new AssetEvent($this);
+                 if ($differentOldPath) {
+-                    $updateEvent->setArgument('oldPath', $differentOldPath);
++                    $postEvent->setArgument('oldPath', $differentOldPath);
+                 }
+-                \Pimcore::getEventDispatcher()->dispatch(AssetEvents::POST_UPDATE, $updateEvent);
++                \Pimcore::getEventDispatcher()->dispatch(AssetEvents::POST_UPDATE, $postEvent);
+             } else {
+-                \Pimcore::getEventDispatcher()->dispatch(AssetEvents::POST_ADD, new AssetEvent($this));
++                \Pimcore::getEventDispatcher()->dispatch(AssetEvents::POST_ADD, $postEvent);
+             }
+ 
+             return $this;
+         } catch (\Exception $e) {
+-            $failureEvent = new AssetEvent($this);
++            $failureEvent = new AssetEvent($this, $params);
+             $failureEvent->setArgument('exception', $e);
+             if ($isUpdate) {
+                 \Pimcore::getEventDispatcher()->dispatch(AssetEvents::POST_UPDATE_FAILURE, $failureEvent);
+diff --color -rupN vendor/pimcore/pimcore-orig/models/DataObject/AbstractObject.php vendor/pimcore/pimcore/models/DataObject/AbstractObject.php
+--- models/DataObject/AbstractObject.php	2023-09-01 14:48:39
++++ models/DataObject/AbstractObject.php	2023-09-01 14:59:56
+@@ -752,20 +752,20 @@ class AbstractObject extends Model\Element\AbstractEle
+             }
+             $this->clearDependentCache($additionalTags);
+ 
++            $postEvent = new DataObjectEvent($this, $params); 
+             if ($isUpdate) {
+-                $updateEvent = new DataObjectEvent($this);
+                 if ($differentOldPath) {
+-                    $updateEvent->setArgument('oldPath', $differentOldPath);
++                    $postEvent->setArgument('oldPath', $differentOldPath);
+                 }
+-                \Pimcore::getEventDispatcher()->dispatch(DataObjectEvents::POST_UPDATE, $updateEvent);
++                \Pimcore::getEventDispatcher()->dispatch(DataObjectEvents::POST_UPDATE, $postEvent);
+             } else {
+                 self::setDisableDirtyDetection($isDirtyDetectionDisabled);
+-                \Pimcore::getEventDispatcher()->dispatch(DataObjectEvents::POST_ADD, new DataObjectEvent($this));
++                \Pimcore::getEventDispatcher()->dispatch(DataObjectEvents::POST_ADD, $postEvent);
+             }
+ 
+             return $this;
+         } catch (\Exception $e) {
+-            $failureEvent = new DataObjectEvent($this);
++            $failureEvent = new DataObjectEvent($this, $params);
+             $failureEvent->setArgument('exception', $e);
+             if ($isUpdate) {
+                 \Pimcore::getEventDispatcher()->dispatch(DataObjectEvents::POST_UPDATE_FAILURE, $failureEvent);
+diff --color -rupN vendor/pimcore/pimcore-orig/models/Document.php vendor/pimcore/pimcore/models/Document.php
+--- models/Document.php	2021-06-23 10:26:54
++++ models/Document.php	2023-09-01 14:54:00
+@@ -463,19 +463,19 @@ class Document extends Element\AbstractElement
+             }
+             $this->clearDependentCache($additionalTags);
+ 
++            $postEvent = new DocumentEvent($this, $params);
+             if ($isUpdate) {
+-                $updateEvent = new DocumentEvent($this);
+                 if ($differentOldPath) {
+-                    $updateEvent->setArgument('oldPath', $differentOldPath);
++                    $postEvent->setArgument('oldPath', $differentOldPath);
+                 }
+-                \Pimcore::getEventDispatcher()->dispatch(DocumentEvents::POST_UPDATE, $updateEvent);
++                \Pimcore::getEventDispatcher()->dispatch(DocumentEvents::POST_UPDATE, $postEvent);
+             } else {
+-                \Pimcore::getEventDispatcher()->dispatch(DocumentEvents::POST_ADD, new DocumentEvent($this));
++                \Pimcore::getEventDispatcher()->dispatch(DocumentEvents::POST_ADD, $postEvent);
+             }
+ 
+             return $this;
+         } catch (\Exception $e) {
+-            $failureEvent = new DocumentEvent($this);
++            $failureEvent = new DocumentEvent($this, $params);
+             $failureEvent->setArgument('exception', $e);
+             if ($isUpdate) {
+                 \Pimcore::getEventDispatcher()->dispatch(DocumentEvents::POST_UPDATE_FAILURE, $failureEvent);

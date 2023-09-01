@@ -1,0 +1,621 @@
+diff -rupN vendor/pimcore/pimcore-orig/bundles/AdminBundle/Resources/public/js/pimcore/element/helpers/gridColumnConfig.js vendor/pimcore/pimcore/bundles/AdminBundle/Resources/public/js/pimcore/element/helpers/gridColumnConfig.js
+--- bundles/AdminBundle/Resources/public/js/pimcore/element/helpers/gridColumnConfig.js	2021-06-23 10:26:54
++++ bundles/AdminBundle/Resources/public/js/pimcore/element/helpers/gridColumnConfig.js	2023-06-29 17:33:09
+@@ -330,11 +330,28 @@ pimcore.element.helpers.gridColumnConfig = {
+         });
+         menu.add(batchRemoveSelectedMenu);
+ 
++        var filterByRelationMenu = new Ext.menu.Item({
++            text: t("filter_by_relation"),
++            iconCls: "pimcore_icon_filter pimcore_icon_overlay_add",
++            handler: function (grid) {
++                var menu = grid.headerCt.getMenu();
++                var column = menu.activeHeader;
++                this.filterPrepare(column);
++            }.bind(this, grid)
++        });
++        menu.add(filterByRelationMenu);
++
+         //
+         menu.on('beforeshow', function (batchAllMenu, batchSelectedMenu, grid) {
+             var menu = grid.headerCt.getMenu();
+             var columnDataIndex = menu.activeHeader.dataIndex;
+ 
++            if (menu.activeHeader.config && typeof menu.activeHeader.config.getRelationFilter === "function") {
++                filterByRelationMenu.show();
++            } else {
++                filterByRelationMenu.hide();
++            }
++
+             // no batch for system properties
+             if (Ext.Array.contains(this.systemColumns, columnDataIndex) || Ext.Array.contains(this.noBatchColumns, columnDataIndex)) {
+                 batchAllMenu.hide();
+@@ -360,6 +377,84 @@ pimcore.element.helpers.gridColumnConfig = {
+                 batchRemoveSelectedMenu.hide();
+             }
+         }.bind(this, batchAllMenu, batchSelectedMenu, grid));
++    },
++
++   filterPrepare: function (column) {
++        var dataIndexName = column.dataIndex
++        var gridColumns = this.grid.getColumns();
++        var columnIndex = -1;
++        for (let i = 0; i < gridColumns.length; i++) {
++            let dataIndex = gridColumns[i].dataIndex;
++            if (dataIndex == dataIndexName) {
++                columnIndex = i;
++                break;
++            }
++        }
++        if (columnIndex < 0) {
++            return;
++        }
++
++        if (this.systemColumns.indexOf(gridColumns[columnIndex].dataIndex) > -1) {
++            return;
++        }
++
++        var fieldInfo = this.grid.getColumns()[columnIndex].config;
++
++        if((this.objecttype === "object") || (this.objecttype === "variant")) {
++            if (!fieldInfo.layout || !fieldInfo.layout.layout) {
++                return;
++            }
++
++            var tagType = fieldInfo.layout.type;
++            var editor = new pimcore.object.tags[tagType](null, fieldInfo.layout.layout);
++            editor.setObject(this.object);
++        }
++
++        editor.updateContext({
++            containerType: "filterByRelationWindow"
++        });
++
++        var formPanel = Ext.create('Ext.form.Panel', {
++            xtype: "form",
++            border: false,
++            items: [editor.getLayoutEdit()],
++            bodyStyle: "padding: 10px;",
++            buttons: [
++                {
++                    text: t("clear_relation_filter"),
++                    iconCls: "pimcore_icon_filter_condition pimcore_icon_overlay_delete",
++                    handler: function () {
++                        this.filterByRelationWindow.close();
++                        this.grid.store.filters.removeByKey("x-gridfilter-"+fieldInfo.dataIndex);
++                    }.bind(this)
++                },
++                {
++                    text: t("apply_filter"),
++                    iconCls: "pimcore_icon_filter pimcore_icon_overlay_add",
++                    handler: function () {
++                        if (formPanel.isValid() && typeof fieldInfo.getRelationFilter === "function") {
++                            this.grid.filters.getStore().addFilter(
++                                fieldInfo.getRelationFilter(fieldInfo.dataIndex, editor)
++                            );
++                            this.filterByRelationWindow.close();
++                        }
++                    }.bind(this)
++                }
++            ]
++        });
++
++        var title = t("filter_by_relation_field") + " " + fieldInfo.text;
++        this.filterByRelationWindow = new Ext.Window({
++            autoScroll: true,
++            modal: false,
++            title: title,
++            items: [formPanel],
++            bodyStyle: "background: #fff;",
++            width: 700,
++            maxHeight: 650
++        });
++        this.filterByRelationWindow.show();
++        this.filterByRelationWindow.updateLayout();
+     },
+ 
+     batchPrepare: function (column, onlySelected, append, remove) {
+diff -rupN vendor/pimcore/pimcore-orig/bundles/AdminBundle/Resources/public/js/pimcore/helpers.js vendor/pimcore/pimcore/bundles/AdminBundle/Resources/public/js/pimcore/helpers.js
+--- bundles/AdminBundle/Resources/public/js/pimcore/helpers.js	2021-06-23 10:26:54
++++ bundles/AdminBundle/Resources/public/js/pimcore/helpers.js	2023-06-29 14:51:14
+@@ -2543,7 +2543,7 @@ pimcore.helpers.requestNicePathData = function (source
+ };
+ 
+ pimcore.helpers.requestNicePathData = function (source, targets, config, fieldConfig, context, decorator, responseHandler) {
+-    if (context && context['containerType'] == "batch") {
++    if (context && (context['containerType'] == "batch" || context['containerType'] == "filterByRelationWindow")) {
+         return;
+     }
+ 
+diff -rupN vendor/pimcore/pimcore-orig/bundles/AdminBundle/Resources/public/js/pimcore/object/helpers/gridTabAbstract.js vendor/pimcore/pimcore/bundles/AdminBundle/Resources/public/js/pimcore/object/helpers/gridTabAbstract.js
+--- bundles/AdminBundle/Resources/public/js/pimcore/object/helpers/gridTabAbstract.js	2023-06-29 14:45:41
++++ bundles/AdminBundle/Resources/public/js/pimcore/object/helpers/gridTabAbstract.js	2023-06-29 17:20:39
+@@ -209,6 +209,7 @@ pimcore.object.helpers.gridTabAbstract = Class.create(
+                 
+                 if (this.grid && this.grid.filters) {
+                     this.grid.filters.clearFilters();
++                    this.grid.getStore().clearFilter();
+                 }
+ 
+                 if (this.pagingtoolbar) {
+@@ -236,6 +237,7 @@ pimcore.object.helpers.gridTabAbstract = Class.create(
+         );
+         proxy.setExtraParam("condition", this.sqlEditor.getValue());
+         if (this.grid && this.grid.filters) {
++            this.grid.getStore().clearFilter();
+             this.grid.filters.clearFilters();
+         }
+ 
+@@ -300,6 +302,7 @@ pimcore.object.helpers.gridTabAbstract = Class.create(
+                 tooltip: t("clear_filters"),
+                 handler: function (button) {
+                     this.grid.filters.clearFilters();
++                    this.grid.getStore().clearFilter();
+                     this.toolbarFilterInfo.hide();
+                     this.clearFilterButton.hide();
+                 }.bind(this)
+@@ -317,6 +320,7 @@ pimcore.object.helpers.gridTabAbstract = Class.create(
+                     "change": function (field, checked) {
+                         this.grid.getStore().setRemoteFilter(false);
+                         this.grid.filters.clearFilters();
++                        this.grid.getStore().clearFilter();
+ 
+                         this.store.getProxy().setExtraParam("only_direct_children", checked);
+ 
+diff -rupN vendor/pimcore/pimcore-orig/bundles/AdminBundle/Resources/public/js/pimcore/object/tags/advancedManyToManyObjectRelation.js vendor/pimcore/pimcore/bundles/AdminBundle/Resources/public/js/pimcore/object/tags/advancedManyToManyObjectRelation.js
+--- bundles/AdminBundle/Resources/public/js/pimcore/object/tags/advancedManyToManyObjectRelation.js	2021-06-23 10:26:54
++++ bundles/AdminBundle/Resources/public/js/pimcore/object/tags/advancedManyToManyObjectRelation.js	2023-06-29 17:26:15
+@@ -599,10 +599,30 @@ pimcore.object.tags.advancedManyToManyObjectRelation =
+         return {
+             text: t(field.label), width: 150, sortable: false, dataIndex: field.key,
+             getEditor: this.getWindowCellEditor.bind(this, field),
++            getRelationFilter: this.getRelationFilter,
+             renderer: pimcore.object.helpers.grid.prototype.advancedRelationGridRenderer.bind(this, field, "fullpath")
+         };
+     },
+ 
++    getRelationFilter: function (dataIndex, editor) {
++        var filterValues = editor.store.getData().items;
++        if (!filterValues || !Array.isArray(filterValues) || !filterValues.length) {
++            filterValues = null;
++        } else {
++            filterValues = filterValues.map(function (item) {
++                return item.data.type + "|" + item.data.id;
++            }).join(',');
++        }
++
++        return new Ext.util.Filter({
++            operator: "like",
++            type: "string",
++            id: "x-gridfilter-" + dataIndex,
++            property: dataIndex,
++            dataIndex: dataIndex,
++            value: filterValues === null ? 'null' : filterValues
++        });
++    },
+ 
+     getCellEditValue: function () {
+         return this.getValue();
+diff -rupN vendor/pimcore/pimcore-orig/bundles/AdminBundle/Resources/public/js/pimcore/object/tags/advancedManyToManyRelation.js vendor/pimcore/pimcore/bundles/AdminBundle/Resources/public/js/pimcore/object/tags/advancedManyToManyRelation.js
+--- bundles/AdminBundle/Resources/public/js/pimcore/object/tags/advancedManyToManyRelation.js	2021-06-23 10:26:54
++++ bundles/AdminBundle/Resources/public/js/pimcore/object/tags/advancedManyToManyRelation.js	2023-06-29 14:54:01
+@@ -937,8 +937,29 @@ pimcore.object.tags.advancedManyToManyRelation = Class
+         return {
+             text: t(field.label), width: 150, sortable: false, dataIndex: field.key,
+             getEditor: this.getWindowCellEditor.bind(this, field),
++            getRelationFilter: this.getRelationFilter,
+             renderer: pimcore.object.helpers.grid.prototype.advancedRelationGridRenderer.bind(this, field, "path")
+         };
++    },
++
++    getRelationFilter: function (dataIndex, editor) {
++        var filterValues = editor.store.getData().items;
++        if (!filterValues || !Array.isArray(filterValues) || !filterValues.length) {
++            filterValues = null;
++        } else {
++            filterValues = filterValues.map(function (item) {
++                return item.data.type + "|" + item.data.id;
++            }).join(',');
++        }
++
++        return new Ext.util.Filter({
++            operator: "like",
++            type: "string",
++            id: "x-gridfilter-" + dataIndex,
++            property: dataIndex,
++            dataIndex: dataIndex,
++            value: filterValues
++        });
+     },
+ 
+     getCellEditValue: function () {
+diff -rupN vendor/pimcore/pimcore-orig/bundles/AdminBundle/Resources/public/js/pimcore/object/tags/hotspotimage.js vendor/pimcore/pimcore/bundles/AdminBundle/Resources/public/js/pimcore/object/tags/hotspotimage.js
+--- bundles/AdminBundle/Resources/public/js/pimcore/object/tags/hotspotimage.js	2021-06-23 10:26:54
++++ bundles/AdminBundle/Resources/public/js/pimcore/object/tags/hotspotimage.js	2023-06-29 17:26:30
+@@ -54,6 +54,7 @@ pimcore.object.tags.hotspotimage = Class.create(pimcor
+         return {
+             text: t(field.label), width: 100, sortable: false, dataIndex: field.key,
+             getEditor: this.getWindowCellEditor.bind(this, field),
++            getRelationFilter: this.getRelationFilter,
+             renderer: function (key, value, metaData, record, rowIndex, colIndex, store, view) {
+                 this.applyPermissionStyle(key, value, metaData, record);
+ 
+@@ -90,6 +91,18 @@ pimcore.object.tags.hotspotimage = Class.create(pimcor
+                 }
+             }.bind(this, field.key)
+         };
++    },
++
++    getRelationFilter: function (dataIndex, editor) {
++        var filterValue = editor.data && editor.data.id !== undefined ? editor.data.id : null;
++        return new Ext.util.Filter({
++            operator: "=",
++            type: "int",
++            id: "x-gridfilter-" + dataIndex,
++            property: dataIndex,
++            dataIndex: dataIndex,
++            value: filterValue === null ? 'null' : filterValue
++        });
+     },
+ 
+     getLayoutEdit: function () {
+diff -rupN vendor/pimcore/pimcore-orig/bundles/AdminBundle/Resources/public/js/pimcore/object/tags/image.js vendor/pimcore/pimcore/bundles/AdminBundle/Resources/public/js/pimcore/object/tags/image.js
+--- bundles/AdminBundle/Resources/public/js/pimcore/object/tags/image.js	2021-06-23 10:26:54
++++ bundles/AdminBundle/Resources/public/js/pimcore/object/tags/image.js	2023-06-29 17:26:52
+@@ -32,6 +32,7 @@ pimcore.object.tags.image = Class.create(pimcore.objec
+         return {
+             text: t(field.label), width: 100, sortable: false, dataIndex: field.key,
+             getEditor: this.getWindowCellEditor.bind(this, field),
++            getRelationFilter: this.getRelationFilter,
+             renderer: function (key, value, metaData, record, rowIndex, colIndex, store, view) {
+                 this.applyPermissionStyle(key, value, metaData, record);
+ 
+@@ -65,6 +66,18 @@ pimcore.object.tags.image = Class.create(pimcore.objec
+                 }
+             }.bind(this, field.key)
+         };
++    },
++
++    getRelationFilter: function (dataIndex, editor) {
++        var filterValue = editor.data && editor.data.id !== undefined ? editor.data.id : null;
++        return new Ext.util.Filter({
++            operator: "=",
++            type: "int",
++            id: "x-gridfilter-" + dataIndex,
++            property: dataIndex,
++            dataIndex: dataIndex,
++            value: filterValue === null ? 'null' : filterValue
++        });
+     },
+ 
+     getLayoutEdit: function () {
+diff -rupN vendor/pimcore/pimcore-orig/bundles/AdminBundle/Resources/public/js/pimcore/object/tags/manyToManyObjectRelation.js vendor/pimcore/pimcore/bundles/AdminBundle/Resources/public/js/pimcore/object/tags/manyToManyObjectRelation.js
+--- bundles/AdminBundle/Resources/public/js/pimcore/object/tags/manyToManyObjectRelation.js	2021-06-23 10:26:54
++++ bundles/AdminBundle/Resources/public/js/pimcore/object/tags/manyToManyObjectRelation.js	2023-06-29 14:57:11
+@@ -88,8 +88,29 @@ pimcore.object.tags.manyToManyObjectRelation = Class.c
+                         return result.join("<br />");
+                     }
+                 }.bind(this, field.key),
++            getRelationFilter: this.getRelationFilter,    
+             getEditor: this.getWindowCellEditor.bind(this, field)
+         };
++    },
++
++    getRelationFilter: function (dataIndex, editor) {
++        var filterValues = editor.store.getData().items;
++        if (!filterValues || !Array.isArray(filterValues) || !filterValues.length) {
++            filterValues = null;
++        } else {
++            filterValues = filterValues.map(function (item) {
++                return item.data.id;
++            }).join(',');
++        }
++
++        return new Ext.util.Filter({
++            operator: "like",
++            type: "string",
++            id: "x-gridfilter-" + dataIndex,
++            property: dataIndex,
++            dataIndex: dataIndex,
++            value: filterValues
++        });
+     },
+ 
+     openParentSearchEditor: function () {
+diff -rupN vendor/pimcore/pimcore-orig/bundles/AdminBundle/Resources/public/js/pimcore/object/tags/manyToManyRelation.js vendor/pimcore/pimcore/bundles/AdminBundle/Resources/public/js/pimcore/object/tags/manyToManyRelation.js
+--- bundles/AdminBundle/Resources/public/js/pimcore/object/tags/manyToManyRelation.js	2021-06-23 10:26:54
++++ bundles/AdminBundle/Resources/public/js/pimcore/object/tags/manyToManyRelation.js	2023-06-29 17:27:14
+@@ -76,6 +76,7 @@ pimcore.object.tags.manyToManyRelation = Class.create(
+         return {
+             text: t(field.label), width: 150, sortable: false, dataIndex: field.key,
+             getEditor: this.getWindowCellEditor.bind(this, field),
++            getRelationFilter: this.getRelationFilter,
+             renderer: function (key, value, metaData, record) {
+                 this.applyPermissionStyle(key, value, metaData, record);
+ 
+@@ -98,6 +99,26 @@ pimcore.object.tags.manyToManyRelation = Class.create(
+                 }
+             }.bind(this, field.key)
+         };
++    },
++
++   getRelationFilter: function (dataIndex, editor) {
++        var filterValues = editor.store.getData().items;
++        if (!filterValues || !Array.isArray(filterValues) || !filterValues.length) {
++            filterValues = null;
++        } else {
++            filterValues = filterValues.map(function (item) {
++                return item.data.type + "|" + item.data.id;
++            }).join(',');
++        }
++
++        return new Ext.util.Filter({
++            operator: "like",
++            type: "string",
++            id: "x-gridfilter-" + dataIndex,
++            property: dataIndex,
++            dataIndex: dataIndex,
++            value: filterValue === null ? 'null' : filterValue
++        });
+     },
+ 
+     getLayoutEdit: function () {
+diff -rupN vendor/pimcore/pimcore-orig/bundles/AdminBundle/Resources/public/js/pimcore/object/tags/manyToOneRelation.js vendor/pimcore/pimcore/bundles/AdminBundle/Resources/public/js/pimcore/object/tags/manyToOneRelation.js
+--- bundles/AdminBundle/Resources/public/js/pimcore/object/tags/manyToOneRelation.js	2021-06-23 10:26:54
++++ bundels/AdminBundle/Resources/public/js/pimcore/object/tags/manyToOneRelation.js	2023-06-29 17:27:19
+@@ -55,10 +55,22 @@ pimcore.object.tags.manyToOneRelation = Class.create(p
+ 
+         return {
+             text: t(field.label), sortable: false, dataIndex: field.key, renderer: renderer,
++            getRelationFilter: this.getRelationFilter,
+             getEditor: this.getWindowCellEditor.bind(this, field)
+         };
+     },
+ 
++    getRelationFilter: function (dataIndex, editor) {
++        var filterValue = editor.data && editor.data.id !== undefined ? editor.data.type + "|" + editor.data.id : null;
++        return new Ext.util.Filter({
++            operator: "=",
++            type: "int",
++            id: "x-gridfilter-" + dataIndex,
++            property: dataIndex,
++            dataIndex: dataIndex,
++            value: filterValue === null ? 'null' : filterValue
++        });
++    },
+ 
+     getLayoutEdit: function () {
+ 
+diff -rupN vendor/pimcore/pimcore-orig/bundles/CoreBundle/Resources/translations/en.json vendor/pimcore/pimcore/bundles/CoreBundle/Resources/translations/en.json
+--- bundles/CoreBundle/Resources/translations/en.json	2021-06-23 10:26:54
++++ bundles/CoreBundle/Resources/translations/en.json	2023-06-29 14:59:21
+@@ -939,5 +939,9 @@
+   "version_currently_saved_in_database": "Currently saved in database (but not published)",
+   "preview_item": "Preview Item",
+   "deprecated_feature": "<p style='color: orange;'>Deprecated feature. Use %s<br>instead</p>",
+-  "reindex_warning": "Changing it from alphabetical sort order to index will reindex all items. Do you want to continue?"
++  "reindex_warning": "Changing it from alphabetical sort order to index will reindex all items. Do you want to continue?",
++  "filter_by_relation": "Filter by relation",
++  "filter_by_relation_field": "Filter by relation field",
++  "clear_relation_filter": "Clear active relation filter",
++  "apply_filter": "Apply filter"
+ }
+diff -rupN vendor/pimcore/pimcore-orig/models/DataObject/ClassDefinition/Data/Extension/RelationFilterConditionParser.php vendor/pimcore/pimcore/models/DataObject/ClassDefinition/Data/Extension/RelationFilterConditionParser.php
+--- models/DataObject/ClassDefinition/Data/Extension/RelationFilterConditionParser.php	1970-01-01 01:00:00
++++ models/DataObject/ClassDefinition/Data/Extension/RelationFilterConditionParser.php	2023-06-29 17:16:50
+@@ -0,0 +1,53 @@
++<?php
++declare(strict_types=1);
++
++/**
++ * Pimcore
++ *
++ * This source file is available under two different licenses:
++ * - GNU General Public License version 3 (GPLv3)
++ * - Pimcore Commercial License (PCL)
++ * Full copyright and license information is available in
++ * LICENSE.md which is distributed with this source code.
++ *
++ *  @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
++ *  @license    http://www.pimcore.org/license     GPLv3 and PCL
++ */
++
++namespace Pimcore\Model\DataObject\ClassDefinition\Data\Extension;
++
++/**
++ * Trait RelationFilterConditionParser
++ * @package Pimcore\Model\DataObject\ClassDefinition\Data\Extension
++ */
++trait RelationFilterConditionParser
++{
++    /**
++     * Parses filter value of a relation field and creates the filter condition
++     * @param string|null $value
++     * @param string      $operator
++     * @param string      $name
++     * @return string
++     */
++    public function getRelationFilterCondition($value, $operator, $name)
++    {
++        $result = '`' . $name . "` IS NULL";
++        if ($value === null || $value === 'null') {
++            return $result;
++        }
++        if ($operator == '=') {
++            return '`' . $name . '` = ' . "'" . $value . "'";
++        }
++        $values = explode(',', (string)$value ?? '');
++        if (is_array($values) && !empty($values)) {
++            $fieldConditions = array_map(function ($value) use ($name) {
++                return '`' . $name . "` LIKE '%," . $value . ",%' ";
++            }, array_filter($values));
++            if (!empty($fieldConditions)) {
++                $result = '(' . implode(' AND ', $fieldConditions) . ')';
++            }
++        }
++
++        return $result;
++    }
++}
+diff -rupN vendor/pimcore/pimcore-orig/models/DataObject/ClassDefinition/Data/Hotspotimage.php vendor/pimcore/pimcore/models/DataObject/ClassDefinition/Data/Hotspotimage.php
+--- models/DataObject/ClassDefinition/Data/Hotspotimage.php	2021-06-23 10:26:54
++++ models/DataObject/ClassDefinition/Data/Hotspotimage.php	2023-06-29 17:07:52
+@@ -29,6 +29,7 @@ class Hotspotimage extends Model\DataObject\ClassDefin
+     use Extension\ColumnType;
+     use Extension\QueryColumnType;
+     use DataObject\ClassDefinition\NullablePhpdocReturnTypeTrait;
++    use DataObject\ClassDefinition\Data\Extension\RelationFilterConditionParser;
+ 
+     /**
+      * Static type of this element
+@@ -820,5 +821,19 @@ class Hotspotimage extends Model\DataObject\ClassDefin
+ 
+             return $image;
+         }
++    }
++
++    /**
++     * Filter by relation feature
++     * @param array|string|null $value
++     * @param string            $operator
++     * @param array             $params
++     * @return string
++     */
++    public function getFilterConditionExt($value, $operator, $params = [])
++    {
++        $name = $params['name'] ?: $this->name;
++        $name .= '__image';
++        return $this->getRelationFilterCondition($value, $operator, $name);
+     }
+ }
+diff -rupN vendor/pimcore/pimcore-orig/models/DataObject/ClassDefinition/Data/Image.php vendor/pimcore/pimcore/models/DataObject/ClassDefinition/Data/Image.php
+--- models/DataObject/ClassDefinition/Data/Image.php	2021-06-23 10:26:54
++++ models/DataObject/ClassDefinition/Data/Image.php	2023-06-29 17:08:39
+@@ -26,6 +26,7 @@ class Image extends Data implements ResourcePersistenc
+     use Extension\ColumnType;
+     use Extension\QueryColumnType;
+     use Model\DataObject\ClassDefinition\NullablePhpdocReturnTypeTrait;
++    use Data\Extension\RelationFilterConditionParser;
+ 
+     /**
+      * Static type of this element
+@@ -562,5 +563,18 @@ class Image extends Data implements ResourcePersistenc
+         if (intval($id) > 0) {
+             return Asset\Image::getById($id);
+         }
++    }
++
++    /**
++     * Filter by relation feature
++     * @param array|string|null $value
++     * @param string            $operator
++     * @param array             $params
++     * @return string
++     */
++    public function getFilterConditionExt($value, $operator, $params = [])
++    {
++        $name = $params['name'] ?: $this->name;
++        return $this->getRelationFilterCondition($value, $operator, $name);
+     }
+ }
+diff -rupN vendor/pimcore/pimcore-orig/models/DataObject/ClassDefinition/Data/ManyToManyObjectRelation.php vendor/pimcore/pimcore/models/DataObject/ClassDefinition/Data/ManyToManyObjectRelation.php
+--- models/DataObject/ClassDefinition/Data/ManyToManyObjectRelation.php	2021-06-23 10:26:54
++++ models/DataObject/ClassDefinition/Data/ManyToManyObjectRelation.php	2023-06-29 17:09:27
+@@ -27,6 +27,7 @@ class ManyToManyObjectRelation extends AbstractRelatio
+     use Extension\QueryColumnType;
+     use DataObject\ClassDefinition\Data\Relations\AllowObjectRelationTrait;
+     use DataObject\ClassDefinition\Data\Relations\ManyToManyRelationTrait;
++    use DataObject\ClassDefinition\Data\Extension\RelationFilterConditionParser;
+ 
+     /**
+      * Static type of this element
+@@ -1017,6 +1018,19 @@ class ManyToManyObjectRelation extends AbstractRelatio
+     {
+         $this->maxItems = $masterDefinition->maxItems;
+         $this->relationType = $masterDefinition->relationType;
++    }
++
++    /**
++     * Filter by relation feature
++     * @param array|string|null $value
++     * @param string            $operator
++     * @param array             $params
++     * @return string
++     */
++    public function getFilterConditionExt($value, $operator, $params = [])
++    {
++        $name = $params['name'] ?: $this->name;
++        return $this->getRelationFilterCondition($value, $operator, $name);
+     }
+ }
+ 
+diff -rupN vendor/pimcore/pimcore-orig/models/DataObject/ClassDefinition/Data/ManyToManyRelation.php vendor/pimcore/pimcore/models/DataObject/ClassDefinition/Data/ManyToManyRelation.php
+--- models/DataObject/ClassDefinition/Data/ManyToManyRelation.php	2021-06-23 10:26:54
++++ models/DataObject/ClassDefinition/Data/ManyToManyRelation.php	2023-06-29 17:12:17
+@@ -31,6 +31,7 @@ class ManyToManyRelation extends AbstractRelations imp
+     use DataObject\ClassDefinition\Data\Relations\AllowAssetRelationTrait;
+     use DataObject\ClassDefinition\Data\Relations\AllowDocumentRelationTrait;
+     use DataObject\ClassDefinition\Data\Relations\ManyToManyRelationTrait;
++    use DataObject\ClassDefinition\Data\Extension\RelationFilterConditionParser;
+ 
+     /**
+      * Static type of this element
+@@ -1111,6 +1112,19 @@ class ManyToManyRelation extends AbstractRelations imp
+         }
+ 
+         throw new \InvalidArgumentException('Filtering '.__CLASS__.' does only support "=" operator');
++    }
++
++    /**
++     * Filter by relation feature
++     * @param array|string|null $value
++     * @param string            $operator
++     * @param array             $params
++     * @return string
++     */
++    public function getFilterConditionExt($value, $operator, $params = [])
++    {
++        $name = $params['name'] ?: $this->name;
++        return $this->getRelationFilterCondition($value, $operator, $name);
+     }
+ }
+ 
+diff -rupN vendor/pimcore/pimcore-orig/models/DataObject/ClassDefinition/Data/ManyToOneRelation.php vendor/pimcore/pimcore/models/DataObject/ClassDefinition/Data/ManyToOneRelation.php
+--- models/DataObject/ClassDefinition/Data/ManyToOneRelation.php	2021-06-23 10:26:54
++++ models/DataObject/ClassDefinition/Data/ManyToOneRelation.php	2023-06-29 17:13:13
+@@ -31,6 +31,7 @@ class ManyToOneRelation extends AbstractRelations impl
+     use DataObject\ClassDefinition\Data\Relations\AllowObjectRelationTrait;
+     use DataObject\ClassDefinition\Data\Relations\AllowAssetRelationTrait;
+     use DataObject\ClassDefinition\Data\Relations\AllowDocumentRelationTrait;
++    use DataObject\ClassDefinition\Data\Extension\RelationFilterConditionParser;
+ 
+     /**
+      * Static type of this element
+@@ -817,6 +818,27 @@ class ManyToOneRelation extends AbstractRelations impl
+         }
+ 
+         return null;
++    }
++
++    /**
++     * Filter by relation feature
++     * @param array|string|null $value
++     * @param string            $operator
++     * @param array             $params
++     * @return string
++     */
++    public function getFilterConditionExt($value, $operator, $params = [])
++    {
++        $name = $params['name'] . '__id';
++        if (preg_match('/^(asset|object|document)\|(\d+)/', $value, $matches)) {
++            $typeField = $params['name'] . '__type';
++            $typeCondition = '`' . $typeField . '` = ' . "'" . $matches[1] . "'";
++            $value = $matches[2];
++
++            return '(' . $typeCondition . ' AND ' . $this->getRelationFilterCondition($value, $operator, $name) . ')';
++        }
++
++        return $this->getRelationFilterCondition($value, $operator, $name);
+     }
+ }
+ 
