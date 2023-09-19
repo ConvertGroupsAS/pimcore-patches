@@ -1,6 +1,6 @@
---- resultPanel.js	2023-09-19 12:02:21.440728401 +0200
-+++ resultPanel2.js	2023-09-19 12:02:12.340730600 +0200
-@@ -90,7 +90,7 @@
+--- a/src/Resources/public/js/searchConfig/resultPanel.js
++++ b/src/Resources/public/js/searchConfig/resultPanel.js
+@@ -90,7 +90,7 @@ pimcore.bundle.advancedObjectSearch.searchConfig.resultPanel = Class.create(pimc
 
                  Ext.Ajax.request({
                      url: "/admin/object-helper/grid-get-column-config",
@@ -9,7 +9,7 @@
                      success: function (response) {
                          response = Ext.decode(response.responseText);
                          var settings = response.settings || {};
-@@ -105,7 +105,7 @@
+@@ -105,7 +105,7 @@ pimcore.bundle.advancedObjectSearch.searchConfig.resultPanel = Class.create(pimc
              } else {
                  Ext.Ajax.request({
                      url: "/admin/object-helper/grid-get-column-config",
@@ -18,7 +18,7 @@
                      success: this.createGrid.bind(this, false)
                  });
              }
-@@ -120,7 +120,7 @@
+@@ -120,7 +120,7 @@ pimcore.bundle.advancedObjectSearch.searchConfig.resultPanel = Class.create(pimc
                  id: this.classId,
                  gridtype: "grid",
                  gridConfigId: this.settings ? this.settings.gridConfigId : null,
@@ -27,7 +27,7 @@
              },
              success: this.createGrid.bind(this, false)
          });
-@@ -562,7 +562,7 @@
+@@ -562,7 +562,7 @@ pimcore.bundle.advancedObjectSearch.searchConfig.resultPanel = Class.create(pimc
              }.bind(this), function (data) {
                  Ext.Ajax.request({
                      url: "/admin/object-helper/grid-get-column-config",
