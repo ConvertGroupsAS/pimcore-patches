@@ -1,0 +1,38 @@
+--- a/src/Resources/public/js/searchConfig/resultPanel.js
++++ b/src/Resources/public/js/searchConfig/resultPanel.js
+@@ -90,7 +90,7 @@ pimcore.bundle.advancedObjectSearch.searchConfig.resultPanel = Class.create(pimc
+
+                 Ext.Ajax.request({
+                     url: "/admin/object-helper/grid-get-column-config",
+-                    params: {name: this.selectedClass, gridtype: "grid"},
++                    params: {name: this.selectedClass, gridtype: "grid", searchType: "folder"},
+                     success: function (response) {
+                         response = Ext.decode(response.responseText);
+                         var settings = response.settings || {};
+@@ -105,7 +105,7 @@ pimcore.bundle.advancedObjectSearch.searchConfig.resultPanel = Class.create(pimc
+             } else {
+                 Ext.Ajax.request({
+                     url: "/admin/object-helper/grid-get-column-config",
+-                    params: {name: this.selectedClass, gridtype: "grid"},
++                    params: {name: this.selectedClass, gridtype: "grid", searchType: "folder"},
+                     success: this.createGrid.bind(this, false)
+                 });
+             }
+@@ -120,7 +120,7 @@ pimcore.bundle.advancedObjectSearch.searchConfig.resultPanel = Class.create(pimc
+                 id: this.classId,
+                 gridtype: "grid",
+                 gridConfigId: this.settings ? this.settings.gridConfigId : null,
+-                searchType: this.searchType
++                searchType: this.searchType ? this.searchType : "folder"
+             },
+             success: this.createGrid.bind(this, false)
+         });
+@@ -562,7 +562,7 @@ pimcore.bundle.advancedObjectSearch.searchConfig.resultPanel = Class.create(pimc
+             }.bind(this), function (data) {
+                 Ext.Ajax.request({
+                     url: "/admin/object-helper/grid-get-column-config",
+-                    params: {name: this.selectedClass, gridtype: "grid"},
++                    params: {name: this.selectedClass, gridtype: "grid", searchType: "folder"},
+                     success: this.createGrid.bind(this, false)
+                 });
+             }.bind(this)
