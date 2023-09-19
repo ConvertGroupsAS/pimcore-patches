@@ -1,0 +1,46 @@
+Subject: [PATCH] fix search type
+---
+Index: src/Resources/public/js/searchConfig/resultPanel.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/Resources/public/js/searchConfig/resultPanel.js b/src/Resources/public/js/searchConfig/resultPanel.js
+--- a/src/Resources/public/js/searchConfig/resultPanel.js	(revision 1895d2eda18276d8e628ac68d92acefd913d924a)
++++ b/src/Resources/public/js/searchConfig/resultPanel.js	(date 1695116170951)
+@@ -90,7 +90,7 @@
+ 
+                 Ext.Ajax.request({
+                     url: "/admin/object-helper/grid-get-column-config",
+-                    params: {name: this.selectedClass, gridtype: "grid"},
++                    params: {name: this.selectedClass, gridtype: "grid", searchType: 'folder'},
+                     success: function (response) {
+                         response = Ext.decode(response.responseText);
+                         var settings = response.settings || {};
+@@ -105,7 +105,7 @@
+             } else {
+                 Ext.Ajax.request({
+                     url: "/admin/object-helper/grid-get-column-config",
+-                    params: {name: this.selectedClass, gridtype: "grid"},
++                    params: {name: this.selectedClass, gridtype: "grid", searchType: 'folder'},
+                     success: this.createGrid.bind(this, false)
+                 });
+             }
+@@ -120,7 +120,7 @@
+                 id: this.classId,
+                 gridtype: "grid",
+                 gridConfigId: this.settings ? this.settings.gridConfigId : null,
+-                searchType: this.searchType
++                searchType: this.searchType ? this.searchType : 'folder'
+             },
+             success: this.createGrid.bind(this, false)
+         });
+@@ -562,7 +562,7 @@
+             }.bind(this), function (data) {
+                 Ext.Ajax.request({
+                     url: "/admin/object-helper/grid-get-column-config",
+-                    params: {name: this.selectedClass, gridtype: "grid"},
++                    params: {name: this.selectedClass, gridtype: "grid", searchType: 'folder'},
+                     success: this.createGrid.bind(this, false)
+                 });
+             }.bind(this)
