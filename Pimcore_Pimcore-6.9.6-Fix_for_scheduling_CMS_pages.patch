@@ -1,13 +1,5 @@
-Subject: [PATCH] Fix for scheduling CMS pages
----
-Index: bundles/AdminBundle/Controller/Admin/Document/PageController.php
-IDEA additional info:
-Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
-<+>UTF-8
-===================================================================
-diff --git a/bundles/AdminBundle/Controller/Admin/Document/PageController.php b/bundles/AdminBundle/Controller/Admin/Document/PageController.php
---- a/bundles/AdminBundle/Controller/Admin/Document/PageController.php	(revision 9a33afacc268d9779bf6419639e8c208355e50c0)
-+++ b/bundles/AdminBundle/Controller/Admin/Document/PageController.php	(date 1675418918231)
+--- a/bundles/AdminBundle/Controller/Admin/Document/PageController.php
++++ b/bundles/AdminBundle/Controller/Admin/Document/PageController.php
 @@ -172,6 +172,8 @@
              $page->setMetaData($metaData);
          }
@@ -32,14 +24,8 @@ diff --git a/bundles/AdminBundle/Controller/Admin/Document/PageController.php b/
              $this->setValuesToDocument($request, $page);
  
              $page->saveVersion();
-Index: bundles/AdminBundle/Controller/Admin/Document/SnippetController.php
-IDEA additional info:
-Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
-<+>UTF-8
-===================================================================
-diff --git a/bundles/AdminBundle/Controller/Admin/Document/SnippetController.php b/bundles/AdminBundle/Controller/Admin/Document/SnippetController.php
---- a/bundles/AdminBundle/Controller/Admin/Document/SnippetController.php	(revision 9a33afacc268d9779bf6419639e8c208355e50c0)
-+++ b/bundles/AdminBundle/Controller/Admin/Document/SnippetController.php	(date 1679661995845)
+--- a/bundles/AdminBundle/Controller/Admin/Document/SnippetController.php
++++ b/bundles/AdminBundle/Controller/Admin/Document/SnippetController.php
 @@ -167,6 +167,13 @@
                  ],
                  'treeData' => $treeData,

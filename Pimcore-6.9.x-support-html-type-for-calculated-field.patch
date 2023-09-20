@@ -1,13 +1,5 @@
-Subject: [PATCH] Fix for scheduling CMS pages
----
-Index: bundles/AdminBundle/Resources/public/js/pimcore/object/tags/calculatedValue.js
-IDEA additional info:
-Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
-<+>UTF-8
-===================================================================
-diff --git a/bundles/AdminBundle/Resources/public/js/pimcore/object/tags/calculatedValue.js b/bundles/AdminBundle/Resources/public/js/pimcore/object/tags/calculatedValue.js
---- a/bundles/AdminBundle/Resources/public/js/pimcore/object/tags/calculatedValue.js	(revision 86a86b1eff88f411efd07df71194c2be4019ea35)
-+++ b/bundles/AdminBundle/Resources/public/js/pimcore/object/tags/calculatedValue.js	(date 1681368595169)
+--- a/bundles/AdminBundle/Resources/public/js/pimcore/object/tags/calculatedValue.js
++++ b/bundles/AdminBundle/Resources/public/js/pimcore/object/tags/calculatedValue.js
 @@ -56,6 +56,8 @@
 
          if(this.fieldConfig.elementType === 'textarea') {
@@ -17,14 +9,8 @@ diff --git a/bundles/AdminBundle/Resources/public/js/pimcore/object/tags/calcula
          } else {
              this.component = new Ext.form.field.Text(input);
          }
-Index: bundles/AdminBundle/Resources/public/js/pimcore/object/classes/data/calculatedValue.js
-IDEA additional info:
-Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
-<+>UTF-8
-===================================================================
-diff --git a/bundles/AdminBundle/Resources/public/js/pimcore/object/classes/data/calculatedValue.js b/bundles/AdminBundle/Resources/public/js/pimcore/object/classes/data/calculatedValue.js
---- a/bundles/AdminBundle/Resources/public/js/pimcore/object/classes/data/calculatedValue.js	(revision 86a86b1eff88f411efd07df71194c2be4019ea35)
-+++ b/bundles/AdminBundle/Resources/public/js/pimcore/object/classes/data/calculatedValue.js	(date 1681368467719)
+--- a/bundles/AdminBundle/Resources/public/js/pimcore/object/classes/data/calculatedValue.js
++++ b/bundles/AdminBundle/Resources/public/js/pimcore/object/classes/data/calculatedValue.js
 @@ -52,7 +52,8 @@
                  labelWidth: 140,
                  store: [
