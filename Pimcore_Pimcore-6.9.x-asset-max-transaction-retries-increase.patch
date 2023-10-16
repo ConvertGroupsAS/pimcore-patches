@@ -1,0 +1,11 @@
+--- a/models/Asset.php
++++ b/models/Asset.php
+@@ -504,7 +504,7 @@ class Asset extends Element\AbstractElement
+             // we wrap the save actions in a loop here, so that we can restart the database transactions in the case it fails
+             // if a transaction fails it gets restarted $maxRetries times, then the exception is thrown out
+             // this is especially useful to avoid problems with deadlocks in multi-threaded environments (forked workers, ...)
+-            $maxRetries = 5;
++            $maxRetries = 50;
+             for ($retries = 0; $retries < $maxRetries; $retries++) {
+                 $this->beginTransaction();
+ 
