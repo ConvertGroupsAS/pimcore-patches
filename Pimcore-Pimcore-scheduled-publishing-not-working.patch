@@ -1,0 +1,19 @@
+--- lib/Maintenance/Tasks/ScheduledTasksTask.php	2021-06-23 10:26:54
++++ lib/Maintenance/Tasks/ScheduledTasksTask.php	2024-10-14 13:37:29
+@@ -19,6 +19,7 @@
+ use Pimcore\Model\Asset;
+ use Pimcore\Model\DataObject;
+ use Pimcore\Model\Document;
++use Pimcore\Model\Schedule\Task;
+ use Pimcore\Model\Schedule\Task\Listing;
+ use Pimcore\Model\User;
+ use Pimcore\Model\Version;
+@@ -123,6 +124,8 @@
+                         }
+                     }
+                 }
++                // Get the updated $task from runtime cache
++                $task = Task::getById($task->getId());
+ 
+                 $task->setActive(false);
+                 $task->save();
