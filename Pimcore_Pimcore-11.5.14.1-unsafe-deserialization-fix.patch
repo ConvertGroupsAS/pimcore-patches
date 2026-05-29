@@ -1,0 +1,107 @@
+--- a/lib/Tool/Serialize.php
++++ b/lib/Tool/Serialize.php
+@@ -28,13 +28,15 @@
+         return serialize($data);
+     }
+ 
+-    public static function unserialize(?string $data = null): mixed
++    public static function unserialize(?string $data = null, array|bool $allowedClasses = true): mixed
+     {
+-        if ($data) {
+-            $data = unserialize($data);
++        if ($data === null || $data === '') {
++            return $data;
+         }
+ 
+-        return $data;
++        return unserialize($data, [
++            'allowed_classes' => $allowedClasses,
++        ]);
+     }
+ 
+     /**
+--- a/models/Asset/WebDAV/Service.php
++++ b/models/Asset/WebDAV/Service.php
+@@ -33,7 +33,11 @@
+     {
+         $log = [];
+         if (file_exists(self::getDeleteLogFile())) {
+-            $log = unserialize(file_get_contents(self::getDeleteLogFile()));
++            $raw = file_get_contents(self::getDeleteLogFile());
++            if (is_string($raw)) {
++                $log = unserialize($raw, ['allowed_classes' => [Asset::class]]);
++            }
++
+             if (!is_array($log)) {
+                 $log = [];
+             } else {
+--- a/models/Asset/WebDAV/Tree.php
++++ b/models/Asset/WebDAV/Tree.php
+@@ -20,6 +20,7 @@
+ use Pimcore\Logger;
+ use Pimcore\Model\Asset;
+ use Pimcore\Model\Element;
++use Pimcore\Tool\Serialize;
+ use Sabre\DAV;
+ 
+ /**
+@@ -57,7 +58,7 @@
+                 // see: Asset\WebDAV\File::delete() why this is necessary
+                 $log = Asset\WebDAV\Service::getDeleteLog();
+                 if (!$asset && array_key_exists('/' .$destinationPath, $log)) {
+-                    $asset = \Pimcore\Tool\Serialize::unserialize($log['/' .$destinationPath]['data']);
++                    $asset = Serialize::unserialize($log['/' . $destinationPath]['data'], false);
+                     if ($asset) {
+                         $sourceAsset = Asset::getByPath('/' . $sourcePath);
+                         $asset->setData($sourceAsset->getData());
+--- a/models/DataObject/ClassDefinition/CustomLayout/Dao.php
++++ b/models/DataObject/ClassDefinition/CustomLayout/Dao.php
+@@ -66,7 +66,12 @@
+             }
+ 
+             if ($data && is_string($data['layoutDefinitions'] ?? null)) {
+-                $data['layoutDefinitions'] = unserialize($data['layoutDefinitions']);
++                $layoutDefinitions = \Pimcore\Tool\Serialize::unserialize($data['layoutDefinitions'], false);
++                if (is_array($layoutDefinitions)) {
++                    $data['layoutDefinitions'] = Model\DataObject\ClassDefinition\Service::generateLayoutTreeFromArray($layoutDefinitions, true);
++                } else {
++                    $data['layoutDefinitions'] = $layoutDefinitions;
++                }
+             } elseif (is_array($data['layoutDefinitions'] ?? null)) {
+                 $data['layoutDefinitions'] = Model\DataObject\ClassDefinition\Service::generateLayoutTreeFromArray($data['layoutDefinitions'], true);
+             }
+--- a/models/DataObject/ClassDefinition/Data/Table.php
++++ b/models/DataObject/ClassDefinition/Data/Table.php
+@@ -220,7 +220,7 @@
+      */
+     public function getDataFromResource(mixed $data, DataObject\Concrete $object = null, array $params = []): array
+     {
+-        $unserializedData = Serialize::unserialize((string) $data);
++        $unserializedData = Serialize::unserialize((string) $data, false);
+ 
+         if ($data === null || empty($unserializedData)) {
+             return [];
+--- a/models/DataObject/Service.php
++++ b/models/DataObject/Service.php
+@@ -1005,7 +1005,7 @@
+     public static function getSuperLayoutDefinition(Concrete $object): mixed
+     {
+         $mainLayout = $object->getClass()->getLayoutDefinitions();
+-        $superLayout = unserialize(serialize($mainLayout));
++        $superLayout = self::cloneDefinition($mainLayout);
+ 
+         self::createSuperLayout($superLayout);
+ 
+--- a/models/Site/Dao.php
++++ b/models/Site/Dao.php
+@@ -64,8 +64,8 @@
+             $sitesRaw = $this->db->fetchAllAssociative('SELECT id,domains FROM sites');
+             $wildcardDomains = [];
+             foreach ($sitesRaw as $site) {
+-                if (!empty($site['domains']) && strpos($site['domains'], '*')) {
+-                    $siteDomains = unserialize($site['domains']);
++                if (!empty($site['domains']) && strpos($site['domains'], '*') !== false) {
++                    $siteDomains = unserialize($site['domains'], ['allowed_classes' => false]);
+                     if (is_array($siteDomains) && count($siteDomains) > 0) {
+                         foreach ($siteDomains as $siteDomain) {
+                             if (str_contains($siteDomain, '*')) {
