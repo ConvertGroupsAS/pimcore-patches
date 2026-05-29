@@ -1,0 +1,18 @@
+--- a/src/Helper/Dashboard.php
++++ b/src/Helper/Dashboard.php
+@@ -61,9 +61,12 @@
+
+         if (empty($this->dashboards)) {
+             if (is_file($this->getConfigFile())) {
+-                $dashboards = Serialize::unserialize(file_get_contents($this->getConfigFile()));
+-                if (!empty($dashboards)) {
+-                    $this->dashboards = $dashboards;
++                $dashboardFile = file_get_contents($this->getConfigFile());
++                if ($dashboardFile !== false) {
++                    $dashboards = unserialize($dashboardFile, ['allowed_classes' => false]);
++                    if (is_array($dashboards) && !empty($dashboards)) {
++                        $this->dashboards = $dashboards;
++                    }
+                 }
+             }
+

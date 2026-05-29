@@ -1,0 +1,49 @@
+--- a/bundles/CustomReportsBundle/src/Tool/Adapter/Sql.php
++++ b/bundles/CustomReportsBundle/src/Tool/Adapter/Sql.php
+@@ -60,7 +60,10 @@
+             $sql = $this->buildQueryString($configuration);
+         }
+
+-        if (!preg_match('/(ALTER|CREATE|DROP|RENAME|TRUNCATE|UPDATE|DELETE) /i', $sql, $matches)) {
++        $sqlStripped = $this->stripSqlCommentsForValidation($sql);
++        if (
++            !preg_match('/(ALTER|CREATE|DROP|RENAME|TRUNCATE|UPDATE|DELETE)\s/i', $sqlStripped, $matches)
++        ) {
+             $sql .= ' LIMIT 0,1';
+             $db = Db::get();
+             $res = $db->fetchAssociative($sql);
+@@ -181,13 +184,17 @@
+             }
+         }
+
+-        if (!preg_match('/(ALTER|CREATE|DROP|RENAME|TRUNCATE|UPDATE|DELETE) /i', $sql, $matches)) {
++        $sqlStripped = $this->stripSqlCommentsForValidation($sql);
++        if (
++            !preg_match('/(ALTER|CREATE|DROP|RENAME|TRUNCATE|UPDATE|DELETE)\s/i', $sqlStripped, $matches)
++        ) {
+             $condition = implode(' AND ', $condition);
+
+             $total = 'SELECT COUNT(*) FROM (' . $sql . ') AS somerandxyz WHERE ' . $condition;
+
+             if ($fields && !$extractAllFields) {
+-                $data = 'SELECT `' . implode('`,`', $fields) . '` FROM (' . $sql . ') AS somerandxyz WHERE ' . $condition;
++                $quotedFields = array_map(fn ($f) => $db->quoteIdentifier($f), $fields);
++                $data = 'SELECT ' . implode(', ', $quotedFields) . ' FROM (' . $sql . ') AS somerandxyz WHERE ' . $condition;
+             } else {
+                 $data = 'SELECT * FROM (' . $sql . ') AS somerandxyz WHERE ' . $condition;
+             }
+@@ -227,4 +234,14 @@
+             ),
+         ];
+     }
++
++    private function stripSqlCommentsForValidation(string $sql): string
++    {
++        $sqlStripped = preg_replace('/\/\*!\d*\s*(.*?)\*\//s', ' $1 ', $sql);
++        $sqlStripped = preg_replace('/\/\*(?!\!).*?\*\//s', ' ', $sqlStripped ?? '');
++        $sqlStripped = preg_replace('/--[^\n]*/', ' ', $sqlStripped ?? '');
++        $sqlStripped = preg_replace('/\s+/', ' ', $sqlStripped ?? '');
++
++        return $sqlStripped;
++    }
+ }
