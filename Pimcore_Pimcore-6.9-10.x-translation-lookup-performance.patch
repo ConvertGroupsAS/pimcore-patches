@@ -1,0 +1,14 @@
+--- a/bundles/AdminBundle/Resources/public/js/pimcore/functions.js
++++ b/bundles/AdminBundle/Resources/public/js/pimcore/functions.js
+@@ -64,8 +64,9 @@ function t(key, defaultValue, placeholders) {
+         return trans;
+     }
+
+-    var transKeys = pimcore && pimcore.system_i18n ? Object.keys(pimcore.system_i18n) : {};
+-    if(pimcore && pimcore.system_i18n && transKeys.indexOf(key) === -1 && transKeys.indexOf(originalKey) === -1){
++    var hasOwn = Object.prototype.hasOwnProperty;
++    var i18n = pimcore && pimcore.system_i18n;
++    if(i18n && !hasOwn.call(i18n, key) && !hasOwn.call(i18n, originalKey)){
+         if(!defaultValue && !in_array(key, alreadyTranslated)) {
+             if(pimcore.globalmanager.exists("translations_admin_missing")) {
+                 if (!in_array(key, pimcore.globalmanager.get("translations_admin_added")) &&
